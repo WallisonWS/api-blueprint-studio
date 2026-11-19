@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Blueprint Studio — OpenAPI 3.1, Zod, Pydantic v2 &amp; HMAC-SHA256 Webhook Lab</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',system-ui,sans-serif; background:#060a14; color:#f8fafc; min-height:100vh; padding:26px 18px; background-image:radial-gradient(circle at 12% 0%,rgba(6,182,212,0.14),transparent 40%),radial-gradient(circle at 88% 8%,rgba(99,102,241,0.14),transparent 40%); }
+    .wrap { max-width:1140px; margin:0 auto; }
+    .hero { background:linear-gradient(135deg,rgba(6,182,212,0.16),rgba(99,102,241,0.16)); border:1px solid rgba(6,182,212,0.4); border-radius:16px; padding:24px 28px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
+    .hero h1 { font-size:1.65rem; font-weight:800; margin-bottom:6px; }
+    .hero p { color:#94a3b8; font-size:0.9rem; max-width:680px; }
+    .btn { background:linear-gradient(135deg,#06b6d4,#6366f1); color:#fff; border:none; padding:9px 16px; border-radius:9px; font-weight:700; cursor:pointer; font-size:0.83rem; text-decoration:none; }
+    .btn-ghost { background:#0f172a; border:1px solid #26334d; color:#e2e8f0; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(440px,1fr)); gap:18px; }
+    .card { background:#0f1626; border:1px solid #23304d; border-radius:14px; padding:20px; margin-bottom:18px; }
+    .card h2 { font-size:0.98rem; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+    .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:10px; }
+    label { font-size:0.78rem; color:#94a3b8; font-weight:600; display:block; margin-bottom:4px; }
+    input, select, textarea { width:100%; background:#080d18; border:1px solid #23304d; color:#f1f5f9; border-radius:8px; padding:9px 11px; font-family:Consolas,monospace; font-size:0.82rem; margin-bottom:8px; }
+    .tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .tab { padding:6px 12px; border-radius:7px; border:1px solid #23304d; background:#080d18; color:#94a3b8; font-weight:700; cursor:pointer; font-size:0.79rem; }
+    .tab.active { background:#06b6d4; color:#060a14; border-color:#06b6d4; }
+    pre { background:#080d18; border:1px solid #23304d; border-radius:8px; padding:14px; font-family:Consolas,monospace; font-size:0.8rem; color:#7dd3fc; white-space:pre-wrap; max-height:320px; overflow:auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>⚡ API Blueprint Studio — OpenAPI 3.1, Zod, Pydantic v2 &amp; Webhook HMAC Lab</h1>
+        <p>Paste any sample JSON payload to auto-generate <strong>OpenAPI 3.1 YAML</strong>, <strong>TypeScript Zod schemas</strong>, <strong>Python Pydantic v2 models</strong>, and compute real <strong>HMAC-SHA256 Webhook Signatures</strong> (GitHub / Stripe style) 100% locally.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <a href="https://github.com/WallisonWS/api-blueprint-studio" target="_blank" class="btn">⭐ Star on GitHub</a>
+        <a href="https://github.com/WallisonWS" target="_blank" class="btn btn-ghost">@WallisonWS</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>📝 Endpoint &amp; Sample JSON Payload</h2>
+        <div class="row">
+          <div><label>Method</label><select id="epMethod"><option>POST</option><option>GET</option><option>PUT</option><option>DELETE</option></select></div>
+          <div style="grid-column:span 2;"><label>Endpoint Path</label><input id="epPath" value="/api/v1/security/alerts" /></div>
+        </div>
+        <label>Sample Request / Response JSON</label>
+        <textarea id="jsonIn" rows="9">{
+  "alert_id": "alrt_90210",
+  "hostname": "fw-core-80f",
+  "severity_score": 9.8,
+  "blocked": true,
+  "source_ip": "185.220.101.45"
+}</textarea>
+      </div>
+
+      <div class="card">
+        <h2>
+          <span>📤 Generated Contract &amp; Validators</span>
+          <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('schemaOut').textContent)">📋 Copy</button>
+        </h2>
+        <div class="tabs" id="sTabs">
+          <button class="tab active" data-m="openapi">OpenAPI 3.1 YAML</button>
+          <button class="tab" data-m="zod">TypeScript (Zod)</button>
+          <button class="tab" data-m="pydantic">Python (Pydantic v2)</button>
+          <button class="tab" data-m="go">Go Struct</button>
+        </div>
+        <pre id="schemaOut"></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔐 Real-Time Webhook HMAC-SHA256 Signature Generator (GitHub / Stripe Compatible)</h2>
+      <div class="row">
+        <div><label>Webhook Shared Secret</label><input id="whSecret" value="whsec_super_secret_2026" /></div>
+        <div style="grid-column:span 2;"><label>Computed X-Hub-Signature-256 Header</label><input id="whSigOut" readonly style="color:#34d399; font-weight:700;" /></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let mode = 'openapi';
+    function generateSchemas() {
+      const method = document.getElementById('epMethod').value.toLowerCase();
+      const path = document.getElementById('epPath').value.trim() || '/api/v1/resource';
+      let obj;
+      try { obj = JSON.parse(document.getElementById('jsonIn').value); } catch (e) { document.getElementById('schemaOut').textContent = `JSON Error: ${e.message}`; return; }
+      const entries = Object.entries(obj);
+      let out = '';
+
+      if (mode === 'openapi') {
+        const props = entries.map(([k, v]) => `          ${k}:\n            type: ${typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'number') : typeof v}\n            example: ${JSON.stringify(v)}`).join('\n');
+        out = `openapi: 3.1.0\ninfo:\n  title: Generated API Contract\n  version: 1.0.0\npaths:\n  ${path}:\n    ${method}:\n      summary: Auto-generated endpoint\n      security:\n        - bearerAuth: []\n      requestBody:\n        required: true\n        content:\n          application/json:\n            schema:\n              type: object\n              properties:\n${props}\n      responses:\n        '200':\n          description: Success`;
+      } else if (mode === 'zod') {
+        const fields = entries.map(([k, v]) => `  ${k}: z.${typeof v === 'number' ? 'number()' : typeof v === 'boolean' ? 'boolean()' : 'string()'},`).join('\n');
+        out = `import { z } from 'zod';\n\nexport const PayloadSchema = z.object({\n${fields}\n});\n\nexport type Payload = z.infer<typeof PayloadSchema>;`;
+      } else if (mode === 'pydantic') {
+        const fields = entries.map(([k, v]) => `    ${k}: ${typeof v === 'number' ? (Number.isInteger(v) ? 'int' : 'float') : typeof v === 'boolean' ? 'bool' : 'str'}`).join('\n');
+        out = `from pydantic import BaseModel\n\nclass PayloadModel(BaseModel):\n${fields}`;
+      } else {
+        const pascal = s => s.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('');
+        const fields = entries.map(([k, v]) => `\t${pascal(k)} ${typeof v === 'number' ? (Number.isInteger(v) ? 'int' : 'float64') : typeof v === 'boolean' ? 'bool' : 'string'} \`json:"${k}"\``).join('\n');
+        out = `type Payload struct {\n${fields}\n}`;
+      }
+      document.getElementById('schemaOut').textContent = out;
+      computeHmac();
+    }
+
+    async function computeHmac() {
+      const secret = document.getElementById('whSecret').value;
+      const body = document.getElementById('jsonIn').value;
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+      const hex = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+      document.getElementById('whSigOut').value = `sha256=${hex}`;
+    }
+
+    document.querySelectorAll('#sTabs .tab').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('#sTabs .tab').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); mode = b.dataset.m; generateSchemas();
+    }));
+    ['epMethod','epPath','jsonIn'].forEach(id => document.getElementById(id).addEventListener('input', generateSchemas));
+    document.getElementById('whSecret').addEventListener('input', computeHmac);
+    generateSchemas();
+  </script>
+</body>
+</html>
